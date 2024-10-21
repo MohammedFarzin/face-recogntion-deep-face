@@ -9,7 +9,7 @@ from PIL import Image, ImageTk
 import tensorflow as tf
 
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 # Create a directory for saving images if it doesn't exist
 if not os.path.exists("saved_images"):
     os.makedirs("saved_images")
@@ -35,31 +35,29 @@ def start_webcam():
         messagebox.showwarning("File Error", "Please upload an image first.")
         return
 
-    # # Start the webcam
-    # video_capture = cv2.VideoCapture(0)
-    # while True:
-    #     ret, frame = video_capture.read()
-    #     if not ret:
-    #         break
+    # Start the webcam
+    video_capture = cv2.VideoCapture(0)
+    while True:
+        ret, frame = video_capture.read()
+        if not ret:
+            break
 
-    #     # Convert the frame to RGB for DeepFace processing
-    #     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    #     # Try to recognize the face in the current frame
-    #     try:
-    result = DeepFace.stream("saved")
-    print(result)
-    # except Exception as e:
-    #     print(e)
+        # Try to recognize the face in the current frame
+        try:
+            result = DeepFace.stream("saved_images")
+            print(result)
+        except Exception as e:
+            print(e)
 
         # Display the frame in a window
-    # cv2.imshow("Webcam Feed", frame)
+        cv2.imshow("Webcam Feed", frame)
 
         # Exit the loop if 'q' is pressed
-        # if cv2.waitKey(1) & 0xFF == ord('q'):
-        #     break
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
 
     # Release the capture and close the window
-    # video_capture.release()
+    video_capture.release()
     cv2.destroyAllWindows()
 
 # Create the main window
