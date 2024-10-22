@@ -87,6 +87,9 @@ def start_webcam():
 
 # Create the main window
 root = tk.Tk()
+root.geometry("800x600")
+root.minsize(400, 300)
+root.maxsize(1200, 900)
 root.title("Face Recognition App")
 
 # Create and place widgets
