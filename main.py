@@ -1,20 +1,11 @@
 import os
 import cv2
 import tkinter as tk
-from tkinter import filedialog
-from tkinter import messagebox
+from tkinter import filedialog, messagebox
 from deepface import DeepFace
-import numpy as np
 from PIL import Image, ImageTk
-import tensorflow as tf
 
 
-os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
-# Create a directory for saving images if it doesn't exist
-if not os.path.exists("saved_images"):
-    os.makedirs("saved_images")
-
-# Function to upload an image
 def upload_image():
     file_path = filedialog.askopenfilename(title="Select an Image", filetypes=[("Image Files", "*.jpg;*.jpeg;*.png")])
     if file_path:
@@ -27,38 +18,72 @@ def upload_image():
             messagebox.showwarning("Input Error", "Please enter a name for the image.")
     else:
         messagebox.showwarning("File Error", "No file selected.")
-
-# Function to start webcam and recognize face
 def start_webcam():
-    known_face_path = f"saved_images/{name_entry.get()}.jpg"
-    if not os.path.exists(known_face_path):
-        messagebox.showwarning("File Error", "Please upload an image first.")
-        return
-
-    # Start the webcam
     video_capture = cv2.VideoCapture(0)
-    while True:
-        ret, frame = video_capture.read()
-        if not ret:
-            break
-
-        # Try to recognize the face in the current frame
+    
+    def capture_and_recognize():
+        face_cascade = None
         try:
-            result = DeepFace.stream("saved_images")
-            print(result)
+            face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+            if face_cascade.empty():
+                raise Exception("Error loading face cascade classifier")
         except Exception as e:
-            print(e)
+            messagebox.showerror("Error", f"Failed to load face detection classifier: {str(e)}")
+            return
 
-        # Display the frame in a window
-        cv2.imshow("Webcam Feed", frame)
+        while True:
+            ret, frame = video_capture.read()
+            if not ret:
+                break
 
-        # Exit the loop if 'q' is pressed
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
 
-    # Release the capture and close the window
-    video_capture.release()
-    cv2.destroyAllWindows()
+            for (x, y, w, h) in faces:
+                cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
+
+            cv2.imshow("Webcam Feed", frame)
+
+            if len(faces) > 0:
+                cv2.imwrite("snapshot.jpg", frame)
+                video_capture.release()
+                cv2.destroyAllWindows()
+                recognize_face("snapshot.jpg")
+                break
+
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+
+        video_capture.release()
+        cv2.destroyAllWindows()
+
+    def recognize_face(image_path):
+        try:
+            result = DeepFace.find(image_path, db_path="saved_images", enforce_detection=False)
+            
+            result_window = tk.Toplevel(root)
+            result_window.title("Face Recognition Result")
+            
+            img = Image.open(image_path)
+            img = img.resize((300, 300), Image.LANCZOS)
+            img_tk = ImageTk.PhotoImage(img)
+            img_label = tk.Label(result_window, image=img_tk)
+            img_label.image = img_tk
+            img_label.pack(side="left", padx=10, pady=10)
+            
+            if len(result) > 0 and len(result[0]) > 0:
+                recognized_name = os.path.splitext(os.path.basename(result[0]["identity"][0]))[0]
+                result_label = tk.Label(result_window, text=f"Face recognized: {recognized_name}", font=("Arial", 16))
+            else:
+                result_label = tk.Label(result_window, text="Face not recognized", font=("Arial", 16))
+                start_button = tk.Button(result_window, text="Start Webcam", command=start_webcam)
+                start_button.pack(pady=10)
+            result_label.pack(side="right", padx=10, pady=10)
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"An error occurred during face recognition: {str(e)}")
+
+    capture_and_recognize()
 
 # Create the main window
 root = tk.Tk()
