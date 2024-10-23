@@ -9,12 +9,13 @@ class FaceRecognitionApp:
     def __init__(self, master):
         self.master = master
         self.master.title("Face Recognition App")
-        self.master.geometry("600x400")
+        self.master.geometry("600x500")
         self.master.configure(bg="#f0f0f0")
 
         self.create_styles()
         self.create_widgets()
         self.result_window = None
+        self.preview_image = None
 
     def create_styles(self):
         self.style = ttk.Style()
@@ -33,12 +34,6 @@ class FaceRecognitionApp:
     def create_widgets(self):
         main_frame = ttk.Frame(self.master, padding="20 20 20 20")
         main_frame.pack(fill=tk.BOTH, expand=True)
-
-        # Logo (replace 'logo.png' with your actual logo file)
-        # logo_img = Image.open("logo.png").resize((100, 100), Image.LANCZOS)
-        # self.logo = ImageTk.PhotoImage(logo_img)
-        # logo_label = ttk.Label(main_frame, image=self.logo, background=self.bg_color)
-        # logo_label.pack(pady=(0, 20))
 
         # Name entry frame
         name_frame = ttk.Frame(main_frame)
@@ -60,6 +55,13 @@ class FaceRecognitionApp:
         self.start_button = ttk.Button(button_frame, text="Start Webcam", command=self.start_webcam)
         self.start_button.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(5, 0))
 
+        # Preview frame
+        self.preview_frame = ttk.Frame(main_frame)
+        self.preview_frame.pack(fill=tk.BOTH, expand=True, pady=10)
+
+        self.preview_label = ttk.Label(self.preview_frame, background=self.bg_color)
+        self.preview_label.pack(fill=tk.BOTH, expand=True)
+
         # Instructions
         self.instructions = ttk.Label(main_frame, text="Upload an image or start webcam to recognize a face", 
                                       font=("Calibri", 10), foreground="gray")
@@ -74,27 +76,47 @@ class FaceRecognitionApp:
     def upload_image(self):
         file_path = filedialog.askopenfilename(title="Select an Image", filetypes=[("Image Files", "*.jpg;*.jpeg;*.png")])
         if file_path:
-            name = self.name_entry.get()
-            if name:
-                image = Image.open(file_path)
-                image.save(f"saved_images/{name}.jpg")  # Save image with the provided name
-                messagebox.showinfo("Success", f"Image saved as {name}.jpg")
-            else:
-                messagebox.showwarning("Input Error", "Please enter a name for the image.")
+            self.preview_image = Image.open(file_path)
+            self.show_preview(self.preview_image)
+            self.confirm_upload()
+
+    def show_preview(self, image):
+        preview = image.copy()
+        preview.thumbnail((400, 400))
+        photo = ImageTk.PhotoImage(preview)
+        self.preview_label.configure(image=photo)
+        self.preview_label.image = photo
+
+    def confirm_upload(self):
+        confirm_window = tk.Toplevel(self.master)
+        confirm_window.title("Confirm Upload")
+        confirm_window.geometry("300x100")
+        confirm_window.configure(bg=self.bg_color)
+
+        ttk.Label(confirm_window, text="Do you want to save this image?", background=self.bg_color).pack(pady=10)
+
+        button_frame = ttk.Frame(confirm_window, style="TFrame")
+        button_frame.pack(fill=tk.X, pady=10)
+
+        ttk.Button(button_frame, text="Save", command=lambda: self.save_image(confirm_window)).pack(side=tk.LEFT, padx=10, expand=True)
+        ttk.Button(button_frame, text="Cancel", command=confirm_window.destroy).pack(side=tk.RIGHT, padx=10, expand=True)
+
+    def save_image(self, window):
+        name = self.name_entry.get()
+        if name:
+            self.preview_image.save(f"saved_images/{name}.jpg")
+            messagebox.showinfo("Success", f"Image saved as {name}.jpg")
+            window.destroy()
         else:
-            messagebox.showwarning("File Error", "No file selected.")
+            messagebox.showwarning("Input Error", "Please enter a name for the image.")
 
     def start_webcam(self):
         video_capture = cv2.VideoCapture(0)
 
         def capture_and_recognize():
-            face_cascade = None
-            try:
-                face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-                if face_cascade.empty():
-                    raise Exception("Error loading face cascade classifier")
-            except Exception as e:
-                messagebox.showerror("Error", f"Failed to load face detection classifier: {str(e)}")
+            face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+            if face_cascade.empty():
+                messagebox.showerror("Error", "Failed to load face detection classifier")
                 return
 
             while True:
@@ -114,7 +136,7 @@ class FaceRecognitionApp:
                     cv2.imwrite("snapshot.jpg", frame)
                     video_capture.release()
                     cv2.destroyAllWindows()
-                    self.recognize_face("snapshot.jpg")
+                    self.show_captured_image("snapshot.jpg")
                     break
 
                 if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -124,6 +146,33 @@ class FaceRecognitionApp:
             cv2.destroyAllWindows()
 
         capture_and_recognize()
+
+    def show_captured_image(self, image_path):
+        captured_window = tk.Toplevel(self.master)
+        captured_window.title("Captured Image")
+        captured_window.configure(bg=self.bg_color)
+
+        img = Image.open(image_path)
+        img.thumbnail((400, 400))
+        photo = ImageTk.PhotoImage(img)
+
+        img_label = ttk.Label(captured_window, image=photo, background=self.bg_color)
+        img_label.image = photo
+        img_label.pack(padx=10, pady=10)
+
+        button_frame = ttk.Frame(captured_window, style="TFrame")
+        button_frame.pack(fill=tk.X, pady=10)
+
+        ttk.Button(button_frame, text="Retry", command=lambda: self.retry_capture(captured_window)).pack(side=tk.LEFT, padx=10, expand=True)
+        ttk.Button(button_frame, text="Confirm", command=lambda: self.confirm_capture(image_path, captured_window)).pack(side=tk.RIGHT, padx=10, expand=True)
+
+    def retry_capture(self, window):
+        window.destroy()
+        self.start_webcam()
+
+    def confirm_capture(self, image_path, window):
+        window.destroy()
+        self.recognize_face(image_path)
 
     def restart_webcam(self):
         if self.result_window:
@@ -158,6 +207,8 @@ class FaceRecognitionApp:
 
         except Exception as e:
             messagebox.showerror("Error", f"An error occurred during face recognition: {str(e)}")
+
+
 
     
 if __name__ == "__main__":
