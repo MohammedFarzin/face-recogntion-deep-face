@@ -1,0 +1,27 @@
+{
+    "noconfirm": true,
+    "onedir": true,
+    "console": true,
+    "name": "face_recognition_app",
+    "contents_directory": ".",
+    "log_level": "DEBUG",
+    "debug": "all",
+    "add_data": [
+      "D:\\cloudone\\face-recogntion-deep-face\\haarcascade_frontalface_default.xml;."
+    ],
+    "hidden_import": [
+      "deepface",
+      "PIL",
+      "cv2"
+    ],
+    "collect_submodules": [
+      "tensorflow",
+      "tf_keras",
+      "keras",
+      "deepface"
+    ],
+    "collect_data": [
+      "deepface"
+    ],
+    "main_script": "D:\\cloudone\\face-recogntion-deep-face\\main.py"
+  }
