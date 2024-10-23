@@ -4,6 +4,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from deepface import DeepFace
 from PIL import Image, ImageTk
+import sys
 
 class FaceRecognitionApp:
     def __init__(self, master):
@@ -12,10 +13,36 @@ class FaceRecognitionApp:
         self.master.geometry("600x500")
         self.master.configure(bg="#f0f0f0")
 
+        if getattr(sys, 'frozen', False):
+            # Running as compiled executable
+            application_path = os.path.dirname(sys.executable)
+        else:
+            # Running as script
+            application_path = os.path.dirname(os.path.abspath(__file__))
+        
+        self.saved_images_dir = os.path.join(application_path, "saved_images")
+        if not os.path.exists(self.saved_images_dir):
+            os.makedirs(self.saved_images_dir)
+            messagebox.showinfo("Success", f"Created directory: {self.saved_images_dir}")
+        
+        self.cascade_path = self.resource_path('haarcascade_frontalface_default.xml')
+        if not os.path.exists(self.cascade_path):
+            messagebox.showerror("Error", f"Classifier file not found at {self.cascade_path}")
+
         self.create_styles()
         self.create_widgets()
         self.result_window = None
         self.preview_image = None
+    
+    def resource_path(self, relative_path):
+        """ Get absolute path to resource, works for dev and for PyInstaller """
+        try:
+            # PyInstaller creates a temp folder and stores path in _MEIPASS
+            base_path = sys._MEIPASS
+        except Exception:
+            base_path = os.path.abspath(".")
+
+        return os.path.join(base_path, relative_path)
 
     def create_styles(self):
         self.style = ttk.Style()
@@ -104,8 +131,9 @@ class FaceRecognitionApp:
     def save_image(self, window):
         name = self.name_entry.get()
         if name:
-            self.preview_image.save(f"saved_images/{name}.jpg")
-            messagebox.showinfo("Success", f"Image saved as {name}.jpg")
+            save_path = os.path.join(self.saved_images_dir, f"{name}.jpg")
+            self.preview_image.save(save_path)
+            messagebox.showinfo("Success", f"Image saved as {save_path}.jpg")
             window.destroy()
         else:
             messagebox.showwarning("Input Error", "Please enter a name for the image.")
@@ -114,7 +142,7 @@ class FaceRecognitionApp:
         video_capture = cv2.VideoCapture(0)
 
         def capture_and_recognize():
-            face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+            face_cascade = cv2.CascadeClassifier(self.cascade_path)
             if face_cascade.empty():
                 messagebox.showerror("Error", "Failed to load face detection classifier")
                 return
@@ -206,7 +234,7 @@ class FaceRecognitionApp:
             result_label.pack(side="right", padx=10, pady=10)
 
         except Exception as e:
-            messagebox.showerror("Error", f"An error occurred during face recognition: {str(e)}")
+            messagebox.showerror("Error", f"An error occurred during face recognition: {str(e)} Image path: {image_path}")
 
 
 
