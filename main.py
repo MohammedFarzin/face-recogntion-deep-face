@@ -1,3 +1,4 @@
+import numpy as np
 import os
 import cv2
 import tkinter as tk
@@ -161,8 +162,15 @@ class FaceRecognitionApp:
                     break
 
                 gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
-
+                equalized = cv2.equalizeHist(gray)
+                faces = face_cascade.detectMultiScale(equalized, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+                if len(faces) > 0:
+                    x, y, w, h = faces[0]
+                    face = equalized[y:y+h, x:x+w]
+                else:
+                    face = equalized
+                
+                resized = cv2.resize(face, (224, 224))
                 for (x, y, w, h) in faces:
                     cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
 
@@ -170,11 +178,13 @@ class FaceRecognitionApp:
 
                 if len(faces) > 0:
                     snapshot_path = os.path.join(self.temp_dir, "snapshot.jpg")
+                    pro_snapshot_path = os.path.join(self.temp_dir, "snapshot_pre.jpg")
                     cv2.imwrite(snapshot_path, frame)
-                    logging.debug(f"Snapshot saved at: {snapshot_path}")
+                    cv2.imwrite(pro_snapshot_path, resized.astype(np.float32) / 255.0)
+                    logging.debug(f"Snapshot saved at: {pro_snapshot_path}")
                     video_capture.release()
                     cv2.destroyAllWindows()
-                    self.show_captured_image(snapshot_path)
+                    self.show_captured_image(snapshot_path, pro_snapshot_path)
                     break
 
                 if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -185,7 +195,7 @@ class FaceRecognitionApp:
 
         capture_and_recognize()
 
-    def show_captured_image(self, image_path):
+    def show_captured_image(self, image_path, pro_image_path):
         captured_window = tk.Toplevel(self.master)
         captured_window.title("Captured Image")
         captured_window.configure(bg=self.bg_color)
@@ -202,23 +212,23 @@ class FaceRecognitionApp:
         button_frame.pack(fill=tk.X, pady=10)
 
         ttk.Button(button_frame, text="Retry", command=lambda: self.retry_capture(captured_window)).pack(side=tk.LEFT, padx=10, expand=True)
-        ttk.Button(button_frame, text="Confirm", command=lambda: self.confirm_capture(image_path, captured_window)).pack(side=tk.RIGHT, padx=10, expand=True)
+        ttk.Button(button_frame, text="Confirm", command=lambda: self.confirm_capture(image_path, pro_image_path, captured_window)).pack(side=tk.RIGHT, padx=10, expand=True)
 
     def retry_capture(self, window):
         window.destroy()
         self.start_webcam()
 
-    def confirm_capture(self, image_path, window):
+    def confirm_capture(self, image_path, pro_image_path, window):
         window.destroy()
-        self.recognize_face(image_path)
+        self.recognize_face(image_path, pro_image_path)
 
     def restart_webcam(self):
         if self.result_window:
             self.result_window.destroy()
         self.start_webcam()
-    def recognize_face(self, image_path):
+    def recognize_face(self, image_path, pro_image_path):
         # try:
-        result = DeepFace.find(img_path=image_path, db_path="saved_images", enforce_detection=False)
+        result = DeepFace.find(img_path=pro_image_path, db_path="saved_images", enforce_detection=False)
         if self.result_window:
             self.result_window.destroy()
 
