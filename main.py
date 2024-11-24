@@ -171,6 +171,8 @@ class FaceRecognitionApp:
                     face = equalized
                 
                 resized = cv2.resize(face, (224, 224))
+                normalized = cv2.normalize(resized, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+
                 for (x, y, w, h) in faces:
                     cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
 
@@ -180,7 +182,7 @@ class FaceRecognitionApp:
                     snapshot_path = os.path.join(self.temp_dir, "snapshot.jpg")
                     pro_snapshot_path = os.path.join(self.temp_dir, "snapshot_pre.jpg")
                     cv2.imwrite(snapshot_path, frame)
-                    cv2.imwrite(pro_snapshot_path, resized.astype(np.float32) / 255.0)
+                    cv2.imwrite(pro_snapshot_path, normalized)
                     logging.debug(f"Snapshot saved at: {pro_snapshot_path}")
                     video_capture.release()
                     cv2.destroyAllWindows()

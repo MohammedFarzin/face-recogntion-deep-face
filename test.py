@@ -36,16 +36,17 @@ def preprocess_image(image_path):
 
     # Resize the image to a standard size
     resized = cv2.resize(face, (224, 224))
+    normalized = cv2.normalize(resized, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
 
 
 
     # Save the preprocessed image
-    cv2.imwrite(preprocessed_path, (resized).astype(np.uint8))
+    cv2.imwrite(preprocessed_path, (normalized).astype(np.uint8))
 
     return preprocessed_path
 def test_face_recognition():
     # Path to the image you want to test
-    test_image_path = "./images.jpeg"
+    test_image_path = "./MILLIE-BOBBY-BROWN-BRITISH-130622-default-Sq-GettyImages-1240647438.jpeg"
 
     # Path to the directory containing your database of known faces
     db_path = "saved_images"
@@ -54,13 +55,11 @@ def test_face_recognition():
         # Preprocess the test image and get the path to the saved preprocessed image
         preprocessed_path = preprocess_image(test_image_path)
 
-        img = cv2.imread(preprocessed_path)
         
         # Normalize the image just before recognition
-        normalized_img = img.astype(float) / 255.0
 
         result = DeepFace.find(
-            img_path=normalized_img,
+            img_path=preprocessed_path,
             db_path=db_path, 
             enforce_detection=False
         )
