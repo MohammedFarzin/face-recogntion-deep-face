@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 import cv2
 
 # Load the pre-trained face detection classifier
@@ -33,3 +34,5 @@ while True:
     if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
 cv2.destroyAllWindows()
+=======
+>>>>>>> Stashed changes
