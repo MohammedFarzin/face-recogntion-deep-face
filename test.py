@@ -1,4 +1,8 @@
+<<<<<<< HEAD
+<<<<<<< Updated upstream
+=======
 from deepface import DeepFace
+>>>>>>> c30a6baddbfebba273c378dc55198b6bfe9bb360
 import cv2
 import os
 import numpy as np
@@ -81,3 +85,11 @@ def test_face_recognition():
 if __name__ == "__main__":
     test_face_recognition()
 
+<<<<<<< HEAD
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+cv2.destroyAllWindows()
+=======
+>>>>>>> Stashed changes
+=======
+>>>>>>> c30a6baddbfebba273c378dc55198b6bfe9bb360

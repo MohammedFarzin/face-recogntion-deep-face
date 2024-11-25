@@ -8,6 +8,8 @@ import sys
 import logging
 import tempfile
 import traceback
+import numpy as
+
 
 # At the beginning of your script
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -146,6 +148,35 @@ class FaceRecognitionApp:
         else:
             messagebox.showwarning("Input Error", "Please enter a name for the image.")
 
+    def preprocess_image(image_path):
+        # Read the image
+        img = cv2.imread(image_path)
+        
+        # Convert to grayscale
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        
+        # Detect face
+        face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+        faces = face_cascade.detectMultiScale(gray, 1.1, 4)
+        
+        if len(faces) > 0:
+            (x, y, w, h) = faces[0]
+            face = img[y:y+h, x:x+w]
+        else:
+            face = img
+        
+        # Resize
+        face = cv2.resize(face, (224, 224))
+        
+        # Apply histogram equalization
+        face_yuv = cv2.cvtColor(face, cv2.COLOR_BGR2YUV)
+        face_yuv[:,:,0] = cv2.equalizeHist(face_yuv[:,:,0])
+        face = cv2.cvtColor(face_yuv, cv2.COLOR_YUV2BGR)
+        face = face.astype(np.float32) / 255.0
+        face = cv2.GaussianBlur(face, (3, 3), 0)
+        
+        return face
+        
     def start_webcam(self):
         video_capture = cv2.VideoCapture(0)
 
