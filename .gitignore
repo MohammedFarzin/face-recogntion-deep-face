@@ -3,3 +3,8 @@ build
 dist
 saved
 saved_images
+output
+*.zip
+*.jpeg
+*.jpg
+*.png

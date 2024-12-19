@@ -5,6 +5,14 @@ from tkinter import ttk, filedialog, messagebox
 from deepface import DeepFace
 from PIL import Image, ImageTk
 import sys
+import logging
+import tempfile
+import traceback
+import numpy as
+
+
+# At the beginning of your script
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class FaceRecognitionApp:
     def __init__(self, master):
@@ -33,6 +41,8 @@ class FaceRecognitionApp:
         self.create_widgets()
         self.result_window = None
         self.preview_image = None
+        self.temp_dir = tempfile.gettempdir()
+        logging.debug(f"Temporary directory: {self.temp_dir}")
     
     def resource_path(self, relative_path):
         """ Get absolute path to resource, works for dev and for PyInstaller """
@@ -138,6 +148,35 @@ class FaceRecognitionApp:
         else:
             messagebox.showwarning("Input Error", "Please enter a name for the image.")
 
+    def preprocess_image(image_path):
+        # Read the image
+        img = cv2.imread(image_path)
+        
+        # Convert to grayscale
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        
+        # Detect face
+        face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+        faces = face_cascade.detectMultiScale(gray, 1.1, 4)
+        
+        if len(faces) > 0:
+            (x, y, w, h) = faces[0]
+            face = img[y:y+h, x:x+w]
+        else:
+            face = img
+        
+        # Resize
+        face = cv2.resize(face, (224, 224))
+        
+        # Apply histogram equalization
+        face_yuv = cv2.cvtColor(face, cv2.COLOR_BGR2YUV)
+        face_yuv[:,:,0] = cv2.equalizeHist(face_yuv[:,:,0])
+        face = cv2.cvtColor(face_yuv, cv2.COLOR_YUV2BGR)
+        face = face.astype(np.float32) / 255.0
+        face = cv2.GaussianBlur(face, (3, 3), 0)
+        
+        return face
+        
     def start_webcam(self):
         video_capture = cv2.VideoCapture(0)
 
@@ -161,10 +200,12 @@ class FaceRecognitionApp:
                 cv2.imshow("Webcam Feed", frame)
 
                 if len(faces) > 0:
-                    cv2.imwrite("snapshot.jpg", frame)
+                    snapshot_path = os.path.join(self.temp_dir, "snapshot.jpg")
+                    cv2.imwrite(snapshot_path, frame)
+                    logging.debug(f"Snapshot saved at: {snapshot_path}")
                     video_capture.release()
                     cv2.destroyAllWindows()
-                    self.show_captured_image("snapshot.jpg")
+                    self.show_captured_image(snapshot_path)
                     break
 
                 if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -207,35 +248,38 @@ class FaceRecognitionApp:
             self.result_window.destroy()
         self.start_webcam()
     def recognize_face(self, image_path):
-        try:
-            result = DeepFace.find(image_path, db_path="saved_images", enforce_detection=False, models=["Facenet512"])
+        # try:
+        result = DeepFace.find(img_path=image_path, db_path="saved_images", enforce_detection=False)
+        if self.result_window:
+            self.result_window.destroy()
 
-            if self.result_window:
-                self.result_window.destroy()
+        self.result_window = tk.Toplevel(self.master)
+        self.result_window.title("Face Recognition Result")
+        self.result_window.configure(bg=self.bg_color)
 
-            self.result_window = tk.Toplevel(self.master)
-            self.result_window.title("Face Recognition Result")
-            self.result_window.configure(bg=self.bg_color)
+        img = Image.open(image_path)
+        img = img.resize((600, 500), Image.LANCZOS)
+        img_tk = ImageTk.PhotoImage(img)
+        img_label = ttk.Label(self.result_window, image=img_tk, background=self.bg_color)
+        img_label.image = img_tk
+        img_label.pack(side="left", padx=10, pady=10)
 
-            img = Image.open(image_path)
-            img = img.resize((600, 500), Image.LANCZOS)
-            img_tk = ImageTk.PhotoImage(img)
-            img_label = ttk.Label(self.result_window, image=img_tk, background=self.bg_color)
-            img_label.image = img_tk
-            img_label.pack(side="left", padx=10, pady=10)
+        if len(result) > 0 and len(result[0]) > 0:
+            recognized_name = os.path.splitext(os.path.basename(result[0]["identity"][0]))[0]
+            result_label = ttk.Label(self.result_window, text=f"Face recognized: {recognized_name}", font=("Calibri", 16))
+        else:
+            result_label = ttk.Label(self.result_window, text="Face not recognized", font=("Calibri", 16))
+            start_button = ttk.Button(self.result_window, text="Start Webcam", command=self.restart_webcam)
+            start_button.pack(side="right", padx=10, pady=10)
+        result_label.pack(side="right", padx=10, pady=10)
 
-            if len(result) > 0 and len(result[0]) > 0:
-                recognized_name = os.path.splitext(os.path.basename(result[0]["identity"][0]))[0]
-                result_label = ttk.Label(self.result_window, text=f"Face recognized: {recognized_name}", font=("Calibri", 16))
-            else:
-                result_label = ttk.Label(self.result_window, text="Face not recognized", font=("Calibri", 16))
-                start_button = ttk.Button(self.result_window, text="Start Webcam", command=self.restart_webcam)
-                start_button.pack(side="right", padx=10, pady=10)
-            result_label.pack(side="right", padx=10, pady=10)
-
-        except Exception as e:
-            messagebox.showerror("Error", f"An error occurred during face recognition: {str(e)} Image path: {image_path}")
-
+        # except Exception as e:
+        #     # messagebox.showerror("Error", f"An error occurred during face recognition: {str(e)} Image path: {image_path}")
+        #     error_msg = f"An error occurred during face recognition: {str(e)}\n"
+        #     error_msg += f"Image path: {image_path}\n"
+        #     error_msg += f"Traceback:\n{traceback.format_exc()}"
+        #     messagebox.showerror("Error", error_msg)
+        #     logging.error(error_msg)
 
 
     
