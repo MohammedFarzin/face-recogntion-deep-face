@@ -208,7 +208,7 @@ class FaceRecognitionApp:
         self.start_webcam()
     def recognize_face(self, image_path):
         try:
-            result = DeepFace.find(image_path, db_path="saved_images", enforce_detection=False)
+            result = DeepFace.find(image_path, db_path="saved_images", enforce_detection=False, models=["Facenet512"])
 
             if self.result_window:
                 self.result_window.destroy()
